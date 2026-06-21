@@ -2,13 +2,13 @@
 session_start();
 include 'koneksi.php';
 
-if(!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') {
+if (!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') {
     die("Akses ditolak");
 }
 
 $error_pesan = "";
 
-if(isset($_POST['tambah'])) {
+if (isset($_POST['tambah'])) {
 
     $nama = $_POST['nama'];
     $spesialis = $_POST['spesialis'];
@@ -27,27 +27,22 @@ if(isset($_POST['tambah'])) {
     $tmp_sertifikat = $_FILES['sertifikat']['tmp_name'];
 
     // VALIDASI ALAMAT
-    if(strlen($alamat_klinik) > 250) {
+    if (strlen($alamat_klinik) > 250) {
 
         $error_pesan = "Alamat klinik maksimal 250 karakter!";
-
     }
 
     // VALIDASI DESKRIPSI
-    else if(strlen($deskripsi) > 255) {
+    else if (strlen($deskripsi) > 255) {
 
         $error_pesan = "Deskripsi maksimal 255 karakter!";
-
     }
 
     // VALIDASI JAM
-    else if($jam_mulai >= $jam_selesai) {
+    else if ($jam_mulai >= $jam_selesai) {
 
         $error_pesan = "Jam selesai harus lebih besar dari jam mulai!";
-
-    }
-
-    else {
+    } else {
 
         // UPLOAD FOTO
         move_uploaded_file(
@@ -102,12 +97,13 @@ if(isset($_POST['tambah'])) {
 
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tambah Dokter - Panel Admin</title>
 
-    <!-- Tailwind -->
+
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Font Awesome -->
@@ -144,7 +140,7 @@ if(isset($_POST['tambah'])) {
             </div>
 
             <a href="dokter.php"
-               class="text-sm font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-2 transition">
+                class="text-sm font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-2 transition">
 
                 <i class="fas fa-arrow-left text-xs"></i>
                 Kembali ke Dokter
@@ -174,7 +170,7 @@ if(isset($_POST['tambah'])) {
             </div>
 
             <!-- Error -->
-            <?php if(!empty($error_pesan)) { ?>
+            <?php if (!empty($error_pesan)) { ?>
 
                 <div class="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-sm">
 
@@ -264,7 +260,10 @@ if(isset($_POST['tambah'])) {
                         Sertifikat
                     </label>
 
-                    <input type="file" name="sertifikat" accept="image/*" required
+                    <input type="file"
+                        name="sertifikat"
+                        accept=".pdf,image/*"
+                        required
                         class="w-full border border-slate-300 rounded-2xl px-4 py-3">
 
                 </div>
@@ -322,4 +321,5 @@ if(isset($_POST['tambah'])) {
     </main>
 
 </body>
+
 </html>
