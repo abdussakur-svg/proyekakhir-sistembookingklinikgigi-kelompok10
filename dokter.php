@@ -2,80 +2,144 @@
 session_start();
 include 'koneksi.php';
 
-if(!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') {
+if (!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') {
     die("Akses ditolak");
 }
 
 $error_pesan = "";
 
-if(isset($_POST['tambah'])) {
+if (isset($_POST['tambah'])) {
 
-    $nama = $_POST['nama'];
-    $spesialis = $_POST['spesialis'];
-    $alamat_klinik = $_POST['alamat_klinik'];
-    $deskripsi = $_POST['deskripsi'];
+    $nama = trim($_POST['nama']);
+    $spesialis = trim($_POST['spesialis']);
+    $alamat_klinik = trim($_POST['alamat_klinik']);
+    $deskripsi = trim($_POST['deskripsi']);
     $hari = $_POST['hari'];
     $jam_mulai = $_POST['jam_mulai'];
     $jam_selesai = $_POST['jam_selesai'];
 
-    // UPLOAD FILE (SUDAH BENAR)
-    $foto_dokter = $_FILES['foto_dokter']['name'];
-    $tmp_foto = $_FILES['foto_dokter']['tmp_name'];
 
-    $sertifikat = $_FILES['sertifikat']['name'];
-    $tmp_sertifikat = $_FILES['sertifikat']['tmp_name'];
+    // UPLOAD FILE
+    $foto_dokter = $_FILES['foto_dokter']['name'] ?? '';
+    $tmp_foto = $_FILES['foto_dokter']['tmp_name'] ?? '';
+
+    $sertifikat = $_FILES['sertifikat']['name'] ?? '';
+    $tmp_sertifikat = $_FILES['sertifikat']['tmp_name'] ?? '';
 
     // VALIDASI
-    if(strlen($alamat_klinik) > 250){
+    if (
+        empty($nama) ||
+        empty($spesialis) ||
+        empty($alamat_klinik) ||
+        empty($deskripsi) ||
+        empty($hari) ||
+        empty($jam_mulai) ||
+        empty($jam_selesai)
+    ) {
+        $error_pesan = "Semua field wajib diisi.";
+    } else if (empty($foto_dokter)) {
+        $error_pesan = "Foto dokter wajib diunggah.";
+    } else if (empty($sertifikat)) {
+        $error_pesan = "Sertifikat wajib diunggah.";
+    } else if (strlen($alamat_klinik) > 250) {
         $error_pesan = "Alamat maksimal 250 karakter!";
-    }
-    else if(strlen($deskripsi) > 255){
+    } else if (strlen($deskripsi) > 255) {
         $error_pesan = "Deskripsi maksimal 255 karakter!";
-    }
-    else if($jam_mulai >= $jam_selesai){
+    } else if ($jam_mulai >= $jam_selesai) {
         $error_pesan = "Jam selesai harus lebih besar dari jam mulai!";
-    }
-    else {
+    } else {
 
-        // UPLOAD KE FOLDER (TANPA MERUBAH CSS)
-        move_uploaded_file($tmp_foto, "gambar-dokter/" . $foto_dokter);
-        move_uploaded_file($tmp_sertifikat, "sertifikat-dokter/" . $sertifikat);
+        // VALIDASI FOTO
+        $ext_foto = strtolower(pathinfo($foto_dokter, PATHINFO_EXTENSION));
+        $allowed_foto = ['jpg', 'jpeg', 'png'];
 
-        // JADWAL
-        $jadwal = $hari . ' ' . $jam_mulai . '-' . $jam_selesai;
+        if (!in_array($ext_foto, $allowed_foto)) {
 
-        // INSERT DATABASE
-        $stmt = mysqli_prepare(
-            $conn,
-            "INSERT INTO dokter
-            (
-                nama_dokter,
-                spesialis,
-                jadwal,
-                alamat_klinik,
-                deskripsi,
-                foto_dokter,
-                sertifikat
-            )
-            VALUES(?,?,?,?,?,?,?)"
-        );
+            $error_pesan = "Foto hanya boleh JPG, JPEG, atau PNG.";
+        } else {
 
-        mysqli_stmt_bind_param(
-            $stmt,
-            "sssssss",
-            $nama,
-            $spesialis,
-            $jadwal,
-            $alamat_klinik,
-            $deskripsi,
-            $foto_dokter,
-            $sertifikat
-        );
+            // VALIDASI SERTIFIKAT
+            $ext_sertifikat = strtolower(pathinfo($sertifikat, PATHINFO_EXTENSION));
+            $allowed_sertifikat = ['pdf', 'jpg', 'jpeg', 'png'];
 
-        mysqli_stmt_execute($stmt);
+            if (!in_array($ext_sertifikat, $allowed_sertifikat)) {
 
-        header("Location: dokter.php");
-        exit;
+                $error_pesan = "Sertifikat hanya boleh PDF, JPG, JPEG, atau PNG.";
+            } else {
+
+                $foto_dokter = time() . '_foto_' . basename($foto_dokter);
+                $sertifikat = time() . '_sertifikat_' . basename($sertifikat);
+
+                if (
+                    !move_uploaded_file(
+                        $tmp_foto,
+                        "gambar-dokter/" . $foto_dokter
+                    )
+                ) {
+                    $error_pesan = "Gagal mengunggah foto dokter.";
+                } else if (
+                    !move_uploaded_file(
+                        $tmp_sertifikat,
+                        "sertifikat-dokter/" . $sertifikat
+                    )
+                ) {
+                    $error_pesan = "Gagal mengunggah sertifikat.";
+                } else {
+
+                    // JADWAL
+                    $jadwal = $hari . ' ' . $jam_mulai . '-' . $jam_selesai;
+
+                    // INSERT DATABASE
+                    $stmt = mysqli_prepare(
+                        $conn,
+                        "INSERT INTO dokter
+                        (
+                            nama_dokter,
+                            spesialis,
+                            jadwal,
+                            alamat_klinik,
+                            deskripsi,
+                            foto_dokter,
+                            sertifikat
+                        )
+                        VALUES(?,?,?,?,?,?,?)"
+                    );
+
+                    mysqli_stmt_bind_param(
+                        $stmt,
+                        "sssssss",
+                        $nama,
+                        $spesialis,
+                        $jadwal,
+                        $alamat_klinik,
+                        $deskripsi,
+                        $foto_dokter,
+                        $sertifikat
+                    );
+
+                    if (mysqli_stmt_execute($stmt)) {
+
+                        mysqli_stmt_close($stmt);
+
+                        header("Location: dokter.php");
+                        exit;
+                    } else {
+                        
+                        if (file_exists("gambar-dokter/" . $foto_dokter)) {
+                            unlink("gambar-dokter/" . $foto_dokter);
+                        }
+
+                        if (file_exists("sertifikat-dokter/" . $sertifikat)) {
+                            unlink("sertifikat-dokter/" . $sertifikat);
+                        }
+
+                        mysqli_stmt_close($stmt);
+
+                        $error_pesan = "Gagal menyimpan data dokter.";
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -85,6 +149,7 @@ $dokter = mysqli_query($conn, "SELECT * FROM dokter");
 
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -127,7 +192,7 @@ $dokter = mysqli_query($conn, "SELECT * FROM dokter");
             </div>
 
             <a href="dashboard.php"
-               class="text-sm font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-2 transition">
+                class="text-sm font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-2 transition">
 
                 <i class="fas fa-arrow-left text-xs"></i>
                 Kembali ke Dashboard
@@ -141,11 +206,11 @@ $dokter = mysqli_query($conn, "SELECT * FROM dokter");
     <!-- Konten -->
     <main class="container mx-auto px-4 py-10 max-w-7xl flex-grow">
 
-        <?php if(!empty($error_pesan)) { ?>
-        <div class="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl flex items-center gap-2 text-sm">
-            <i class="fas fa-exclamation-circle text-rose-500"></i>
-            <span><?php echo $error_pesan; ?></span>
-        </div>
+        <?php if (!empty($error_pesan)) { ?>
+            <div class="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl flex items-center gap-2 text-sm">
+                <i class="fas fa-exclamation-circle text-rose-500"></i>
+                <span><?php echo $error_pesan; ?></span>
+            </div>
         <?php } ?>
 
         <!-- Header -->
@@ -161,7 +226,7 @@ $dokter = mysqli_query($conn, "SELECT * FROM dokter");
             </div>
 
             <a href="tambah-dokter.php"
-               class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold px-5 py-3 rounded-2xl text-sm transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/10 w-fit">
+                class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold px-5 py-3 rounded-2xl text-sm transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/10 w-fit">
 
                 <i class="fas fa-plus text-xs"></i>
                 Tambah Dokter Baru
@@ -173,7 +238,7 @@ $dokter = mysqli_query($conn, "SELECT * FROM dokter");
         <!-- CARD -->
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
-            <?php if(mysqli_num_rows($dokter) == 0) { ?>
+            <?php if (mysqli_num_rows($dokter) == 0) { ?>
 
                 <div class="col-span-full bg-white rounded-3xl p-10 text-center border border-slate-200">
                     <i class="fas fa-folder-open text-4xl text-slate-300 mb-4"></i>
@@ -182,13 +247,33 @@ $dokter = mysqli_query($conn, "SELECT * FROM dokter");
 
             <?php } else { ?>
 
-                <?php while($d = mysqli_fetch_assoc($dokter)) { ?>
+                <?php while ($d = mysqli_fetch_assoc($dokter)) { ?>
 
                     <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-300">
 
                         <div class="h-64 bg-slate-100 overflow-hidden">
-                            <img src="gambar-dokter/<?php echo htmlspecialchars($d['foto_dokter']); ?>"
-                                 class="w-full h-full object-cover">
+
+                            <?php if (
+                                !empty($d['foto_dokter']) &&
+                                file_exists("gambar-dokter/" . $d['foto_dokter'])
+                            ) { ?>
+
+                                <img src="gambar-dokter/<?php echo htmlspecialchars($d['foto_dokter']); ?>"
+                                    class="w-full h-full object-cover">
+
+                            <?php } else { ?>
+
+                                <div class="w-full h-full flex items-center justify-center">
+                                    <div class="text-center">
+                                        <i class="fas fa-user-md text-slate-300 text-5xl mb-2"></i>
+                                        <p class="text-sm text-slate-500">
+                                            Foto tidak tersedia
+                                        </p>
+                                    </div>
+                                </div>
+
+                            <?php } ?>
+
                         </div>
 
                         <div class="p-6">
@@ -222,20 +307,66 @@ $dokter = mysqli_query($conn, "SELECT * FROM dokter");
                                     Sertifikasi Dokter
                                 </p>
 
-                                <img src="sertifikat-dokter/<?php echo htmlspecialchars($d['sertifikat']); ?>"
-                                     class="w-full h-40 object-cover rounded-2xl border border-slate-200">
+                                <?php
+                                $ext_sertifikat = strtolower(
+                                    pathinfo($d['sertifikat'] ?? '', PATHINFO_EXTENSION)
+                                );
+                                ?>
+
+                                <?php if (
+                                    !empty($d['sertifikat']) &&
+                                    file_exists("sertifikat-dokter/" . $d['sertifikat'])
+                                ) { ?>
+
+                                    <?php if ($ext_sertifikat === 'pdf') { ?>
+
+                                        <a href="sertifikat-dokter/<?php echo htmlspecialchars($d['sertifikat']); ?>"
+                                            target="_blank"
+                                            class="w-full h-40 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-center">
+
+                                            <div class="text-center">
+                                                <i class="fas fa-file-pdf text-red-600 text-4xl mb-2"></i>
+                                                <p class="text-xs text-slate-600">
+                                                    Lihat Sertifikat PDF
+                                                </p>
+                                            </div>
+
+                                        </a>
+
+                                    <?php } else { ?>
+
+                                        <img src="sertifikat-dokter/<?php echo htmlspecialchars($d['sertifikat']); ?>"
+                                            class="w-full h-40 object-cover rounded-2xl border border-slate-200">
+
+                                    <?php } ?>
+
+                                <?php } else { ?>
+
+                                    <div class="w-full h-40 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-center">
+
+                                        <div class="text-center">
+                                            <i class="fas fa-file-circle-xmark text-slate-300 text-4xl mb-2"></i>
+                                            <p class="text-xs text-slate-500">
+                                                Sertifikat tidak tersedia
+                                            </p>
+                                        </div>
+
+                                    </div>
+
+                                <?php } ?>
+
                             </div>
 
                             <div class="flex gap-2">
 
                                 <a href="edit-dokter.php?id=<?php echo $d['id_dokter']; ?>"
-                                   class="flex-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 border border-slate-200 rounded-2xl py-3 text-sm font-bold text-center transition">
+                                    class="flex-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 border border-slate-200 rounded-2xl py-3 text-sm font-bold text-center transition">
                                     <i class="fas fa-edit"></i> Edit
                                 </a>
 
                                 <a href="hapus-dokter.php?id=<?php echo $d['id_dokter']; ?>"
-                                   onclick="return confirm('Yakin ingin menghapus dokter ini?')"
-                                   class="flex-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-100 rounded-2xl py-3 text-sm font-bold text-center transition">
+                                    onclick="return confirm('Yakin ingin menghapus dokter ini?')"
+                                    class="flex-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-100 rounded-2xl py-3 text-sm font-bold text-center transition">
                                     <i class="fas fa-trash-alt"></i> Hapus
                                 </a>
 
@@ -257,4 +388,5 @@ $dokter = mysqli_query($conn, "SELECT * FROM dokter");
     </footer>
 
 </body>
+
 </html>
