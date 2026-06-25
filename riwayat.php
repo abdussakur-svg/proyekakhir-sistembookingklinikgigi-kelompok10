@@ -68,11 +68,6 @@ $result = mysqli_stmt_get_result($stmt);
                 <h2 class="text-2xl font-black text-slate-900 tracking-tight">Riwayat Janji Temu Anda</h2>
                 <p class="text-slate-500 text-sm mt-0.5">Pantau status konfirmasi dan berkas jadwal pemeriksaan dokter aktif Anda.</p>
             </div>
-
-            <a href="cetak-riwayat.php"
-                class="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700">
-                <i class="fas fa-print"></i> Cetak PDF
-            </a>
         </div>
 
         <!-- Wadah Tabel Modern -->
